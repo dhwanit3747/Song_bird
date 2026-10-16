@@ -18,11 +18,27 @@ FRONTEND_DIR = PROJECT_DIR / "frontend"
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
-from signals_systems.processing import create_plots, enhance_audio
+from signals_systems.processing import (
+    FILTER_ORDER,
+    HIGHCUT_HZ,
+    LOWCUT_HZ,
+    create_plots,
+    enhance_audio_with_calculations,
+)
 
 app = FastAPI(title="Birdsong Cleaner")
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 MAX_DURATION_SECONDS = 40
+
+
+def _rms(audio: np.ndarray) -> float:
+    return float(np.sqrt(np.mean(np.square(audio))))
+
+
+def _level_change_db(reference: float, measured: float) -> float | None:
+    if reference <= 1e-12:
+        return None
+    return float(20 * np.log10(max(measured, 1e-12) / reference))
 
 
 @app.get("/", include_in_schema=False)
@@ -62,7 +78,9 @@ async def process_audio(file: UploadFile = File(...)) -> dict[str, object]:
 
     mono = audio.mean(axis=1)
     try:
-        bandpassed, cleaned, sos = enhance_audio(mono, sample_rate)
+        bandpassed, cleaned, sos, gate_details = enhance_audio_with_calculations(
+            mono, sample_rate
+        )
         plots = create_plots(mono, bandpassed, cleaned, sample_rate, sos)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -76,14 +94,18 @@ async def process_audio(file: UploadFile = File(...)) -> dict[str, object]:
 
     cleaned_for_playback = 0.98 * cleaned / peak
     output_sample_rate = min(sample_rate, 22050)
+    resample_up = 1
+    resample_down = 1
     if output_sample_rate != sample_rate:
         from scipy.signal import resample_poly
 
         divisor = np.gcd(sample_rate, output_sample_rate)
+        resample_up = int(output_sample_rate // divisor)
+        resample_down = int(sample_rate // divisor)
         cleaned_for_playback = resample_poly(
             cleaned_for_playback,
-            output_sample_rate // divisor,
-            sample_rate // divisor,
+            resample_up,
+            resample_down,
         )
     output_buffer = BytesIO()
     sf.write(
@@ -94,6 +116,64 @@ async def process_audio(file: UploadFile = File(...)) -> dict[str, object]:
         subtype="PCM_16",
     )
 
+    output_payload = output_buffer.getvalue()
+    output_audio, decoded_output_sample_rate = sf.read(
+        BytesIO(output_payload), dtype="float64", always_2d=True
+    )
+    input_rms = _rms(mono)
+    bandpassed_rms = _rms(bandpassed)
+    cleaned_rms = _rms(cleaned)
+    output_rms = _rms(output_audio)
+    calculations = {
+        "input": {
+            "sample_count": int(audio.shape[0]),
+            "sample_rate": int(sample_rate),
+            "channels": int(audio.shape[1]),
+            "duration_seconds": duration,
+            "mono_formula": "x_mono[n] = (1 / C) * sum_c x_c[n]",
+            "mono_rms": input_rms,
+            "mono_peak": float(np.max(np.abs(mono))),
+        },
+        "filter": {
+            "design": (
+                "Butterworth IIR band-pass, SOS, forward-backward "
+                "(zero-phase) filtering"
+            ),
+            "order": FILTER_ORDER,
+            "low_cut_hz": LOWCUT_HZ,
+            "high_cut_hz": min(HIGHCUT_HZ, 0.95 * (sample_rate / 2)),
+            "sos_coefficients": sos.tolist(),
+            "output_rms": bandpassed_rms,
+            "rms_change_db_from_input": _level_change_db(
+                input_rms, bandpassed_rms
+            ),
+        },
+        "spectral_gate": {
+            **gate_details,
+            "input_rms": bandpassed_rms,
+            "output_rms": cleaned_rms,
+            "rms_change_db_from_bandpass": _level_change_db(
+                bandpassed_rms, cleaned_rms
+            ),
+        },
+        "output": {
+            "normalization_peak_before": peak,
+            "normalization_target_peak": 0.98,
+            "normalization_gain": float(0.98 / peak),
+            "resample_up": resample_up,
+            "resample_down": resample_down,
+            "sample_rate": int(decoded_output_sample_rate),
+            "sample_count": int(output_audio.shape[0]),
+            "duration_seconds": float(
+                output_audio.shape[0] / decoded_output_sample_rate
+            ),
+            "rms": output_rms,
+            "peak": float(np.max(np.abs(output_audio))),
+            "bit_depth": 16,
+            "rms_change_db_from_input": _level_change_db(input_rms, output_rms),
+        },
+    }
+
     result = {
         "filename": Path(file.filename or "uploaded-audio").name,
         "sample_rate": sample_rate,
@@ -101,7 +181,8 @@ async def process_audio(file: UploadFile = File(...)) -> dict[str, object]:
         "channels": audio.shape[1],
         "duration": duration,
         "plots": plots,
-        "cleaned_audio": base64.b64encode(output_buffer.getvalue()).decode("ascii"),
+        "calculations": calculations,
+        "cleaned_audio": base64.b64encode(output_payload).decode("ascii"),
         "note": (
             "This is bird-focused enhancement, not perfect source separation. "
             "Bird calls and traffic can overlap in frequency."

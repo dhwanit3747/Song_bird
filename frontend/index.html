@@ -392,6 +392,43 @@
     figure.wide { grid-column: 1 / -1; }
     figcaption { margin: 0 0 8px; font-size: 12px; font-weight: 700; }
     figure img { display: block; width: 100%; height: auto; border-radius: 5px; }
+    .calculation-panel {
+      margin-top: 16px;
+      padding: 18px 20px;
+      border: 1px solid #e0e9e2;
+      border-radius: 13px;
+      background: #fff;
+      box-shadow: 0 7px 24px #153d2f0b;
+    }
+    .calculation-panel > summary {
+      color: var(--forest);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .calculation-intro { margin: 12px 0 20px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .calculation-step { padding-block: 16px; border-top: 1px solid var(--line); }
+    .calculation-step h3 { margin: 0 0 9px; font: 700 14px Manrope, sans-serif; }
+    .equation {
+      display: block;
+      overflow-x: auto;
+      margin: 8px 0 13px;
+      padding: 11px 13px;
+      border-radius: 7px;
+      background: #f3f6ef;
+      color: #284c3b;
+      font: 12px/1.7 "DM Mono", monospace;
+      white-space: normal;
+    }
+    .calculation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 20px; margin: 0; }
+    .calculation-grid > div { min-width: 0; }
+    .calculation-grid dt { color: var(--muted); font-size: 11px; }
+    .calculation-grid dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--ink); font: 11px "DM Mono", monospace; }
+    .coefficient-wrap { overflow-x: auto; margin-top: 12px; }
+    .coefficient-table { width: 100%; border-collapse: collapse; font: 10px "DM Mono", monospace; }
+    .coefficient-table th, .coefficient-table td { padding: 7px 9px; border: 1px solid var(--line); text-align: right; white-space: nowrap; }
+    .coefficient-table th:first-child, .coefficient-table td:first-child { text-align: left; }
+    .coefficient-table thead { background: #f3f6ef; color: #315a48; }
     .output-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     .note { margin: 12px 0 0; color: #687b72; font-size: 11px; line-height: 1.6; }
     .syllabus { background: #fff; }
@@ -436,6 +473,8 @@
       .upload-box, .output-row { align-items: stretch; flex-direction: column; }
       .charts, .concept-grid { grid-template-columns: 1fr; }
       figure.wide { grid-column: auto; }
+      .calculation-panel { padding: 16px; }
+      .calculation-grid { grid-template-columns: 1fr; }
       .button-dark, .download { width: 100%; }
       .card { padding: 17px; }
     }
@@ -583,6 +622,38 @@
             <figure class="wide"><figcaption>Short-time Fourier transform (STFT) spectrograms</figcaption><img id="spectrogram-plot" alt="Input and cleaned audio spectrograms"></figure>
             <figure class="wide"><figcaption>Waveform comparison</figcaption><img id="waveform-plot" alt="Noisy input, filtered signal, and cleaned output waveforms"></figure>
           </div>
+          <details class="calculation-panel">
+            <summary>Show the audio processing calculations</summary>
+            <p class="calculation-intro">These values come from the recording you uploaded. The equations describe the processing steps; the measurements and filter coefficients below are calculated for this file.</p>
+            <section class="calculation-step">
+              <h3>1. Input and channel conversion</h3>
+              <code class="equation">x<sub>mono</sub>[n] = (1 / C) Σ<sub>c=1</sub><sup>C</sup> x<sub>c</sub>[n] &nbsp; · &nbsp; duration = number of samples / sample rate</code>
+              <dl class="calculation-grid" id="calculation-input"></dl>
+            </section>
+            <section class="calculation-step">
+              <h3>2. Butterworth IIR band-pass</h3>
+              <code class="equation">One-pass design: Y(z) = H(z)X<sub>mono</sub>(z) &nbsp; · &nbsp; Offline forward-backward filtering: |H<sub>effective</sub>(f)| ≈ |H(f)|²</code>
+              <dl class="calculation-grid" id="calculation-filter"></dl>
+              <div class="coefficient-wrap">
+                <table class="coefficient-table">
+                  <thead><tr><th>Section</th><th>b<sub>0</sub></th><th>b<sub>1</sub></th><th>b<sub>2</sub></th><th>a<sub>0</sub></th><th>a<sub>1</sub></th><th>a<sub>2</sub></th></tr></thead>
+                  <tbody id="sos-coefficients"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="calculation-step">
+              <h3>3. STFT spectral noise gate</h3>
+              <code class="equation">X(k,m) = STFT{y<sub>bp</sub>[n]} &nbsp; · &nbsp; N(k) = α P<sub>20</sub>(|X(k,m)|) &nbsp; · &nbsp; G(k,m) = max(1 − N(k) / max(|X(k,m)|, ε), G<sub>min</sub>)<br>G is median-smoothed across 5 adjacent time frames &nbsp; · &nbsp; Y(k,m) = G(k,m)X(k,m) &nbsp; · &nbsp; y<sub>clean</sub>[n] = ISTFT{Y(k,m)}</code>
+              <dl class="calculation-grid" id="calculation-gate"></dl>
+              <p class="note" id="gate-example"></p>
+              <p class="note">Noise magnitudes are in normalized STFT amplitude units. Gain statistics describe the time-frequency mask after smoothing; they are not a direct measure of noise removed.</p>
+            </section>
+            <section class="calculation-step">
+              <h3>4. Playback normalization and output</h3>
+              <code class="equation">y<sub>play</sub>[n] = 0.98 · y<sub>clean</sub>[n] / max(|y<sub>clean</sub>[n]|) &nbsp; · &nbsp; resampling = rational polyphase resampling when required</code>
+              <dl class="calculation-grid" id="calculation-output"></dl>
+            </section>
+          </details>
         </div>
       </div>
     </section>
@@ -619,6 +690,81 @@
     const resultsEmpty = document.querySelector("#results-empty");
     let inputUrl = null;
     let outputUrl = null;
+
+    const formatValue = (value, unit = "") => {
+      if (value === null || value === undefined) return "undefined (input RMS is zero)";
+      if (typeof value === "number") {
+        return `${value.toLocaleString(undefined, { maximumSignificantDigits: 6 })}${unit}`;
+      }
+      return `${value}${unit}`;
+    };
+    const renderCalculationRows = (elementId, rows) => {
+      const list = document.getElementById(elementId);
+      list.replaceChildren();
+      for (const [label, value] of rows) {
+        const item = document.createElement("div");
+        const term = document.createElement("dt");
+        const description = document.createElement("dd");
+        term.textContent = label;
+        description.textContent = value;
+        item.append(term, description);
+        list.append(item);
+      }
+    };
+    const renderCalculations = (calculations) => {
+      const { input, filter, spectral_gate: gate, output } = calculations;
+      renderCalculationRows("calculation-input", [
+        ["Input dimensions", `${input.sample_count.toLocaleString()} samples · ${input.channels} channel(s)`],
+        ["Sample rate / duration", `${input.sample_rate.toLocaleString()} Hz · ${formatValue(input.duration_seconds, " s")}`],
+        ["Channel conversion", input.mono_formula],
+        ["Mono peak amplitude", formatValue(input.mono_peak)],
+        ["Mono RMS amplitude", formatValue(input.mono_rms)],
+      ]);
+      renderCalculationRows("calculation-filter", [
+        ["Filter", `${filter.design} · order ${filter.order}`],
+        ["Passband cutoffs", `${formatValue(filter.low_cut_hz, " Hz")} – ${formatValue(filter.high_cut_hz, " Hz")}`],
+        ["Input RMS → band-pass RMS", `${formatValue(input.mono_rms)} → ${formatValue(filter.output_rms)}`],
+        ["RMS level change", `${formatValue(filter.rms_change_db_from_input, " dB")} vs. mono input`],
+        ["SOS sections", String(filter.sos_coefficients.length)],
+      ]);
+      const coefficientBody = document.getElementById("sos-coefficients");
+      coefficientBody.replaceChildren();
+      filter.sos_coefficients.forEach((coefficients, index) => {
+        const row = document.createElement("tr");
+        [String(index + 1), ...coefficients.map((value) => formatValue(value))]
+          .forEach((value) => {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.append(cell);
+          });
+        coefficientBody.append(row);
+      });
+      renderCalculationRows("calculation-gate", [
+        ["STFT frame / overlap / hop", `${gate.frame_size} / ${gate.overlap} / ${gate.hop_size} samples`],
+        ["Frequency bins × time frames", `${gate.frequency_bins.toLocaleString()} × ${gate.time_frames.toLocaleString()}`],
+        ["Noise estimate", `${formatValue(gate.noise_percentile, "th percentile")} × ${formatValue(gate.noise_attenuation)} · α = attenuation multiplier`],
+        ["Noise magnitude min / median / max", `${formatValue(gate.noise_magnitude_min)} / ${formatValue(gate.noise_magnitude_median)} / ${formatValue(gate.noise_magnitude_max)}`],
+        ["Gain floor", formatValue(gate.gain_floor)],
+        ["Applied gain min / median / max", `${formatValue(gate.gain_min)} / ${formatValue(gate.gain_median)} / ${formatValue(gate.gain_max)}`],
+        ["Time-frequency cells attenuated", formatValue(gate.attenuated_percent, "%")],
+        ["Cells at gain floor", formatValue(gate.gain_floor_percent, "%")],
+        ["Band-pass RMS → cleaned RMS", `${formatValue(gate.input_rms)} → ${formatValue(gate.output_rms)}`],
+        ["RMS level change", `${formatValue(gate.rms_change_db_from_bandpass, " dB")} vs. band-pass`],
+      ]);
+      document.getElementById("gate-example").textContent =
+        `Worked STFT-cell example at ${formatValue(gate.example_frequency_hz, " Hz")} and ${formatValue(gate.example_time_seconds, " s")}: ` +
+        `G = max(1 − ${formatValue(gate.example_estimated_noise_magnitude)} / max(${formatValue(gate.example_magnitude)}, 1e−12), ${formatValue(gate.gain_floor)}) ` +
+        `= ${formatValue(gate.example_raw_gain)} before smoothing; ${formatValue(gate.example_smoothed_gain)} after smoothing.`;
+      renderCalculationRows("calculation-output", [
+        ["Peak before normalization", formatValue(output.normalization_peak_before)],
+        ["Normalization target / gain", `${formatValue(output.normalization_target_peak)} / ${formatValue(output.normalization_gain)}×`],
+        ["Resampling ratio (up / down)", `${output.resample_up} / ${output.resample_down}`],
+        ["Output format", `${output.sample_rate.toLocaleString()} Hz · ${output.bit_depth}-bit PCM WAV`],
+        ["Output samples / duration", `${output.sample_count.toLocaleString()} · ${formatValue(output.duration_seconds, " s")}`],
+        ["Final RMS / peak", `${formatValue(output.rms)} / ${formatValue(output.peak)}`],
+        ["Final RMS level change", `${formatValue(output.rms_change_db_from_input, " dB")} vs. mono input`],
+      ]);
+    };
 
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const topbar = document.querySelector(".topbar");
@@ -726,6 +872,7 @@
         })) {
           document.getElementById(imageId).src = `data:image/png;base64,${data.plots[key]}`;
         }
+        renderCalculations(data.calculations);
         resultsEmpty.hidden = true;
         result.classList.add("visible");
         statusMessage.textContent = "Processing complete. Listen to the original and cleaned audio for comparison.";

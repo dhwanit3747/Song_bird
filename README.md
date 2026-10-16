@@ -2,7 +2,9 @@
 
 Upload a short field recording to reduce persistent background sound, compare
 the original and bird-focused audio, inspect the generated signal plots, and
-download the cleaned WAV.
+download the cleaned WAV. Each result also includes an expandable processing
+calculation report with the per-upload filter coefficients, STFT/noise-gate
+measurements, worked gain example, and output normalization details.
 
 ## Project structure
 

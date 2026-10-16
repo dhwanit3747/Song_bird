@@ -37,6 +37,28 @@ def spectral_gate(
     gain_floor: float = GAIN_FLOOR,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Reduce persistent background energy using an STFT spectral gate."""
+    reduced, frame_times, gain, _ = _spectral_gate_with_details(
+        x,
+        sample_rate,
+        frame_size,
+        overlap,
+        noise_percentile,
+        attenuation,
+        gain_floor,
+    )
+    return reduced, frame_times, gain
+
+
+def _spectral_gate_with_details(
+    x: np.ndarray,
+    sample_rate: int,
+    frame_size: int = STFT_FRAME_SIZE,
+    overlap: int = STFT_OVERLAP,
+    noise_percentile: float = NOISE_PERCENTILE,
+    attenuation: float = NOISE_ATTENUATION,
+    gain_floor: float = GAIN_FLOOR,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict[str, float | int]]:
+    """Apply the spectral gate and retain statistics from its actual STFT."""
     if x.ndim != 1 or x.size == 0:
         raise ValueError("Audio must be a non-empty mono signal.")
     if not 0 <= noise_percentile < 100:
@@ -76,13 +98,71 @@ def spectral_gate(
         input_onesided=True,
         boundary=True,
     )
-    return reduced[: x.size], frame_times, gain
+    noise_min, noise_median, noise_max = np.percentile(
+        noise_profile, (0, 50, 100)
+    )
+    example_bin, example_frame = np.unravel_index(
+        np.argmax(magnitude), magnitude.shape
+    )
+    example_magnitude = float(magnitude[example_bin, example_frame])
+    example_noise_profile = float(noise_profile[example_bin, 0])
+    example_estimated_noise = attenuation * example_noise_profile
+    example_raw_gain = max(
+        1.0
+        - example_estimated_noise / max(example_magnitude, 1e-12),
+        gain_floor,
+    )
+    details: dict[str, float | int] = {
+        "frame_size": actual_frame_size,
+        "overlap": actual_overlap,
+        "hop_size": actual_frame_size - actual_overlap,
+        "frequency_bins": int(magnitude.shape[0]),
+        "time_frames": int(magnitude.shape[1]),
+        "noise_percentile": noise_percentile,
+        "noise_attenuation": attenuation,
+        "gain_floor": gain_floor,
+        "noise_magnitude_min": float(noise_min),
+        "noise_magnitude_median": float(noise_median),
+        "noise_magnitude_max": float(noise_max),
+        "gain_min": float(np.min(gain)),
+        "gain_median": float(np.median(gain)),
+        "gain_max": float(np.max(gain)),
+        "attenuated_percent": float(np.mean(gain < 0.999) * 100),
+        "gain_floor_percent": float(
+            np.mean(gain <= gain_floor + 1e-12) * 100
+        ),
+        "example_frequency_hz": float(
+            example_bin * sample_rate / actual_frame_size
+        ),
+        "example_time_seconds": float(frame_times[example_frame]),
+        "example_magnitude": example_magnitude,
+        "example_noise_profile_magnitude": example_noise_profile,
+        "example_estimated_noise_magnitude": float(example_estimated_noise),
+        "example_raw_gain": float(example_raw_gain),
+        "example_smoothed_gain": float(gain[example_bin, example_frame]),
+    }
+    return reduced[: x.size], frame_times, gain, details
 
 
 def enhance_audio(
     noisy: np.ndarray, sample_rate: int
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return band-passed audio, enhanced audio, and filter SOS coefficients."""
+    bandpassed, cleaned, sos, _ = enhance_audio_with_calculations(
+        noisy, sample_rate
+    )
+    return bandpassed, cleaned, sos
+
+
+def enhance_audio_with_calculations(
+    noisy: np.ndarray, sample_rate: int
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    dict[str, float | int],
+]:
+    """Enhance audio and return measured statistics from the spectral gate."""
     if noisy.ndim != 1 or noisy.size == 0:
         raise ValueError("Audio must be a non-empty mono signal.")
     if not np.all(np.isfinite(noisy)):
@@ -111,8 +191,10 @@ def enhance_audio(
             "The audio is too short for the selected Butterworth filter."
         ) from exc
 
-    cleaned, _, _ = spectral_gate(bandpassed, sample_rate)
-    return bandpassed, cleaned, sos
+    cleaned, _, _, gate_details = _spectral_gate_with_details(
+        bandpassed, sample_rate
+    )
+    return bandpassed, cleaned, sos, gate_details
 
 
 def _figure_as_base64(fig: plt.Figure) -> str:
