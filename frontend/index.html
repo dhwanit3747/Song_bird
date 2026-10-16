@@ -39,8 +39,14 @@
       position: sticky;
       z-index: 20;
       top: 0;
-      border-bottom: 1px solid #e7e9df;
+      border-bottom: 1px solid transparent;
+      background: var(--forest-deep);
+      transition: background-color .25s ease, border-color .25s ease, box-shadow .25s ease;
+    }
+    .topbar.scrolled {
+      border-bottom-color: #e7e9df;
       background: rgb(248 248 241 / 94%);
+      box-shadow: 0 5px 18px rgb(27 41 34 / 5%);
       backdrop-filter: blur(16px);
     }
     .nav {
@@ -57,7 +63,7 @@
       flex: 0 0 auto;
       align-items: center;
       gap: 10px;
-      color: var(--forest);
+      color: #f8f8f1;
       font-family: Manrope, sans-serif;
       font-size: 20px;
       font-weight: 800;
@@ -76,20 +82,29 @@
     }
     .nav-links { display: flex; align-items: center; gap: clamp(17px, 3vw, 38px); }
     .nav-links a {
-      color: #536158;
+      color: #d6e0d5;
       font-size: 13px;
       font-weight: 600;
       text-decoration: none;
       transition: color .2s ease;
     }
-    .nav-links a:hover, .nav-links a[aria-current="location"] { color: #20835d; }
+    .nav-links a:hover, .nav-links a[aria-current="location"] { color: var(--leaf); }
     .nav-links .nav-cta {
       padding: 11px 17px;
       border-radius: 7px;
+      background: var(--leaf);
+      color: var(--forest-deep);
+    }
+    .nav-links .nav-cta:hover { background: #d0f59b; color: var(--forest-deep); }
+    .topbar.scrolled .brand { color: var(--forest); }
+    .topbar.scrolled .nav-links a { color: #536158; }
+    .topbar.scrolled .nav-links a:hover,
+    .topbar.scrolled .nav-links a[aria-current="location"] { color: #20835d; }
+    .topbar.scrolled .nav-links .nav-cta {
       background: var(--forest);
       color: white;
     }
-    .nav-links .nav-cta:hover { background: #245842; color: white; }
+    .topbar.scrolled .nav-links .nav-cta:hover { background: #245842; color: white; }
 
     .hero {
       position: relative;
@@ -606,6 +621,11 @@
     let outputUrl = null;
 
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const topbar = document.querySelector(".topbar");
+    const updateTopbar = () => topbar.classList.toggle("scrolled", window.scrollY > 24);
+    updateTopbar();
+    window.addEventListener("scroll", updateTopbar, { passive: true });
+
     if (window.gsap && !prefersReducedMotion) {
       const intro = gsap.timeline({ defaults: { ease: "power3.out" } });
       intro.from(".topbar", { y: -18, opacity: 0, duration: 0.65 })
