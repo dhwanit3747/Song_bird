@@ -25,7 +25,7 @@ pyproject.toml                   Vercel Python entrypoint configuration
 From the project root:
 
 ```powershell
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 python -m uvicorn backend.app:app --reload
 ```
 
@@ -35,18 +35,21 @@ Open <http://127.0.0.1:8000>. The frontend calls the same-origin
 ## Deploy to Vercel
 
 1. Put this project in a Git repository and import it as a Vercel project.
-2. Keep the Vercel **Root Directory** set to this project root (the folder
-   containing `pyproject.toml`), not the `backend/` subfolder.
-3. Vercel detects `pyproject.toml`, installs `requirements.txt`, and loads
-   `backend.app:app` as the Python FastAPI entrypoint.
+2. Set the Vercel **Root Directory** to the repository root (the folder
+   containing `index.py`, `pyproject.toml`, and `requirements.txt`), not one
+   of its three code folders.
+3. Vercel detects the conventional root `index.py` FastAPI entrypoint and
+   installs the runtime packages from `requirements.txt`. `.python-version`
+   selects Python 3.12.
 4. Deploy. The FastAPI static mount serves `frontend/` at `/`; API routes are
    registered before that mount.
 
 After deployment, verify that `/api/health` responds with `{"status":"ok"}`.
-If the root and health endpoint both return a function invocation error, check
-the Vercel runtime logs and confirm the latest commit includes
-`backend/app.py`, `signals_systems/processing.py`, and the project-root
-`pyproject.toml`.
+If the page still fails, check Vercel **Project → Settings → General →
+Root Directory** and set it to `.` (repository root), then check the latest
+deployment's **Build Logs** and **Runtime Logs**. Confirm that the deployment
+commit contains `index.py`, `backend/app.py`, `signals_systems/processing.py`,
+`frontend/index.html`, and `requirements.txt`.
 
 Alternatively, install the Vercel CLI and deploy from this directory:
 
@@ -58,8 +61,8 @@ vercel
 The serverless uploader enforces Vercel's 4.5 MB function payload limit with a
 4 MB file cap and a 40-second audio limit. Cleaned audio is resampled to mono
 22.05 kHz when necessary so the audio and graph response remain within the
-serverless response-size limit. No persistent storage or environment secret
-is required.
+serverless response-size limit. **No `.env` file or environment variables are
+required**; the app has no configurable secrets or external API keys.
 
 ## Run the course demonstration
 
