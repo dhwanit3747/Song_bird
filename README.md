@@ -39,10 +39,11 @@ Open <http://127.0.0.1:8000>. The frontend calls the same-origin
    containing `index.py`, `pyproject.toml`, and `requirements.txt`), not one
    of its three code folders.
 3. Vercel detects the conventional root `index.py` FastAPI entrypoint and
-   installs the runtime packages from `requirements.txt`. `.python-version`
-   selects Python 3.12.
-4. Deploy. The FastAPI static mount serves `frontend/` at `/`; API routes are
-   registered before that mount.
+   installs dependencies declared in `pyproject.toml`. `.python-version`
+   selects Python 3.12. Runtime dependencies are also listed in
+   `requirements.txt` for pip-based setups.
+4. Deploy. The FastAPI app serves the homepage and static files from
+   `frontend/`; the processing and health routes are served by the same app.
 
 After deployment, verify that `/api/health` responds with `{"status":"ok"}`.
 If the page still fails, check Vercel **Project → Settings → General →

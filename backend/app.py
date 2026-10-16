@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import numpy as np
 import soundfile as sf
@@ -22,6 +23,11 @@ from signals_systems.processing import create_plots, enhance_audio
 app = FastAPI(title="Birdsong Cleaner")
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 MAX_DURATION_SECONDS = 40
+
+
+@app.get("/", include_in_schema=False)
+def homepage() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "index.html")
 
 
 @app.post("/api/process")
