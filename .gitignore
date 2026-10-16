@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+.venv/
+.vercel/
+birdsong_cleaned.wav
+birdsong_filtered.wav
