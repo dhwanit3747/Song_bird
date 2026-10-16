@@ -5,17 +5,21 @@ from __future__ import annotations
 import base64
 from io import BytesIO
 from pathlib import Path
+import sys
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 import numpy as np
 import soundfile as sf
 
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = PROJECT_DIR / "frontend"
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
 from signals_systems.processing import create_plots, enhance_audio
 
 app = FastAPI(title="Birdsong Cleaner")
-PROJECT_DIR = Path(__file__).resolve().parent.parent
-FRONTEND_DIR = PROJECT_DIR / "frontend"
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 MAX_DURATION_SECONDS = 40
 
@@ -106,6 +110,11 @@ async def process_audio(file: UploadFile = File(...)) -> dict[str, object]:
             detail="The analysis result is too large for serverless response limits. Upload a shorter recording.",
         )
     return result
+
+
+@app.get("/api/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
 
 
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
