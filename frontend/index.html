@@ -29,10 +29,10 @@
       scroll-padding-top: 92px;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; min-width: 320px; }
+    body { margin: 0; }
     button, input { font: inherit; }
     a { color: inherit; }
-    .wrap { width: min(1160px, calc(100% - 48px)); margin-inline: auto; }
+    .wrap { width: min(1160px, calc(100% - 48px)); min-width: 0; margin-inline: auto; }
     .mono { font-family: "DM Mono", monospace; }
 
     .topbar {
@@ -50,6 +50,7 @@
       backdrop-filter: blur(16px);
     }
     .nav {
+      position: relative;
       display: flex;
       width: min(1280px, calc(100% - 48px));
       min-height: 76px;
@@ -58,6 +59,31 @@
       gap: 28px;
       margin-inline: auto;
     }
+    .nav-toggle {
+      display: none;
+      width: 40px;
+      height: 40px;
+      align-content: center;
+      justify-items: center;
+      gap: 5px;
+      padding: 0;
+      border: 1px solid rgb(214 224 213 / 35%);
+      border-radius: 8px;
+      background: transparent;
+      color: #f8f8f1;
+      cursor: pointer;
+    }
+    .nav-toggle span {
+      width: 17px;
+      height: 2px;
+      border-radius: 2px;
+      background: currentColor;
+      transition: transform .2s ease, opacity .2s ease;
+    }
+    .topbar.scrolled .nav-toggle { border-color: #ccd6cb; color: var(--forest); }
+    .topbar.menu-open .nav-toggle span:first-child { transform: translateY(3.5px) rotate(45deg); }
+    .topbar.menu-open .nav-toggle span:nth-child(2) { opacity: 0; }
+    .topbar.menu-open .nav-toggle span:last-child { transform: translateY(-3.5px) rotate(-45deg); }
     .brand {
       display: inline-flex;
       flex: 0 0 auto;
@@ -133,13 +159,15 @@
     .hero::after { right: -170px; bottom: -390px; width: 650px; height: 650px; }
     .hero-inner {
       display: grid;
-      grid-template-columns: 1fr .92fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, .92fr);
       align-items: center;
       gap: clamp(40px, 7vw, 100px);
       padding-block: 82px 96px;
     }
     .eyebrow {
       display: inline-flex;
+      max-width: 100%;
+      flex-wrap: wrap;
       align-items: center;
       gap: 10px;
       color: #c7dcba;
@@ -159,6 +187,7 @@
     .hero h1 {
       max-width: 630px;
       margin: 22px 0 21px;
+      overflow-wrap: break-word;
       font-family: Manrope, sans-serif;
       font-size: clamp(50px, 7.6vw, 92px);
       font-weight: 600;
@@ -305,7 +334,7 @@
     }
     .section-intro { max-width: 420px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
     #studio { background: #f1f3e9; }
-    .studio-grid { display: grid; grid-template-columns: .8fr 1.2fr; align-items: start; gap: 28px; }
+    .studio-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: start; gap: 28px; }
     .studio-aside { padding: 8px 10px 0 0; }
     .studio-aside h3 { margin: 0 0 12px; font-family: Manrope, sans-serif; font-size: 20px; letter-spacing: -.04em; }
     .studio-aside p { color: var(--muted); font-size: 13px; line-height: 1.75; }
@@ -418,6 +447,7 @@
       background: #f3f6ef;
       color: #284c3b;
       font: 12px/1.7 "DM Mono", monospace;
+      overflow-wrap: anywhere;
       white-space: normal;
     }
     .calculation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 20px; margin: 0; }
@@ -432,7 +462,7 @@
     .output-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     .note { margin: 12px 0 0; color: #687b72; font-size: 11px; line-height: 1.6; }
     .syllabus { background: #fff; }
-    .concept-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 29px; }
+    .concept-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 29px; }
     .concept {
       min-height: 151px;
       padding: 19px;
@@ -447,23 +477,56 @@
     .footer-inner { display: flex; justify-content: space-between; gap: 15px; }
 
     @media (max-width: 800px) {
-      .hero-inner { grid-template-columns: 1fr .8fr; gap: 25px; }
+      .hero-inner { grid-template-columns: minmax(0, 1fr) minmax(0, .8fr); gap: 25px; }
       .visual-card { padding: 14px; }
-      .studio-grid { grid-template-columns: 1fr; }
-      .studio-aside { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      .studio-grid { grid-template-columns: minmax(0, 1fr); }
+      .studio-aside { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
       .studio-aside > div:first-child { grid-row: span 2; }
+      .concept-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 620px) {
       .wrap, .nav { width: min(100% - 32px, 540px); }
       .nav { min-height: 64px; gap: 12px; }
+      .nav-toggle { display: grid; flex: 0 0 auto; }
+      .nav-links {
+        position: absolute;
+        z-index: 1;
+        top: 100%;
+        right: 0;
+        left: 0;
+        display: none;
+        align-items: stretch;
+        gap: 4px;
+        padding: 9px;
+        border: 1px solid rgb(214 224 213 / 18%);
+        border-radius: 0 0 10px 10px;
+        background: var(--forest-deep);
+        box-shadow: 0 14px 24px rgb(0 0 0 / 15%);
+      }
+      .topbar.scrolled .nav-links { border-color: #e0e8de; background: #f8f8f1; }
+      .topbar.menu-open .nav-links { display: flex; flex-direction: column; }
+      .nav-links a, .topbar.scrolled .nav-links a {
+        display: block;
+        padding: 11px 12px;
+        border-radius: 6px;
+        color: #d6e0d5;
+        font-size: 13px;
+      }
+      .topbar.scrolled .nav-links a { color: #536158; }
+      .nav-links a:hover, .topbar.scrolled .nav-links a:hover { background: rgb(185 231 122 / 12%); }
+      .nav-links .nav-cta, .topbar.scrolled .nav-links .nav-cta {
+        width: 100%;
+        margin-top: 3px;
+        padding: 11px 12px;
+        background: var(--leaf);
+        color: var(--forest-deep);
+        text-align: center;
+      }
       .brand { font-size: 18px; }
       .brand-mark { width: 30px; height: 30px; }
-      .nav-links { gap: 13px; }
-      .nav-links a { font-size: 11px; }
-      .nav-links .nav-cta { padding: 9px 11px; }
       .hero { min-height: auto; }
-      .hero-inner { grid-template-columns: 1fr; gap: 42px; padding-block: 66px 62px; }
-      .hero h1 { max-width: 510px; font-size: clamp(51px, 15vw, 76px); }
+      .hero-inner { grid-template-columns: minmax(0, 1fr); gap: 42px; padding-block: 66px 62px; }
+      .hero h1 { max-width: 510px; font-size: clamp(42px, 12vw, 68px); }
       .hero-copy { font-size: 14px; }
       .visual-card { width: 100%; max-width: 470px; justify-self: center; }
       .section-head { align-items: start; flex-direction: column; }
@@ -471,7 +534,7 @@
       .studio-aside { display: block; }
       .step-list { grid-template-columns: 1fr; margin: 17px 0 10px; }
       .upload-box, .output-row { align-items: stretch; flex-direction: column; }
-      .charts, .concept-grid { grid-template-columns: 1fr; }
+      .charts, .concept-grid { grid-template-columns: minmax(0, 1fr); }
       figure.wide { grid-column: auto; }
       .calculation-panel { padding: 16px; }
       .calculation-grid { grid-template-columns: 1fr; }
@@ -496,7 +559,10 @@
       <a class="brand" href="#home" aria-label="Songbird home">
         <span class="brand-mark" aria-hidden="true">♫</span> songbird
       </a>
-      <div class="nav-links">
+      <button class="nav-toggle" type="button" aria-label="Open navigation menu" aria-controls="nav-links" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="nav-links">
         <a href="#studio">Studio</a>
         <a href="#results">Results</a>
         <a href="#science">The science</a>
@@ -688,6 +754,8 @@
     const progress = document.querySelector("#progress");
     const result = document.querySelector("#result");
     const resultsEmpty = document.querySelector("#results-empty");
+    const topbar = document.querySelector(".topbar");
+    const navToggle = document.querySelector(".nav-toggle");
     let inputUrl = null;
     let outputUrl = null;
 
@@ -767,10 +835,25 @@
     };
 
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const topbar = document.querySelector(".topbar");
     const updateTopbar = () => topbar.classList.toggle("scrolled", window.scrollY > 24);
     updateTopbar();
     window.addEventListener("scroll", updateTopbar, { passive: true });
+    const closeNavigation = () => {
+      topbar.classList.remove("menu-open");
+      navToggle.setAttribute("aria-expanded", "false");
+      navToggle.setAttribute("aria-label", "Open navigation menu");
+    };
+    navToggle.addEventListener("click", () => {
+      const isOpen = topbar.classList.toggle("menu-open");
+      navToggle.setAttribute("aria-expanded", String(isOpen));
+      navToggle.setAttribute("aria-label", isOpen ? "Close navigation menu" : "Open navigation menu");
+    });
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 620) closeNavigation();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeNavigation();
+    });
 
     if (window.gsap && !prefersReducedMotion) {
       const intro = gsap.timeline({ defaults: { ease: "power3.out" } });
@@ -799,6 +882,7 @@
 
     document.querySelectorAll('.nav-links a[href^="#"], .hero a[href^="#"]').forEach((link) => {
       link.addEventListener("click", (event) => {
+        if (link.closest(".nav-links")) closeNavigation();
         const target = document.querySelector(link.getAttribute("href"));
         if (!target) return;
         event.preventDefault();
