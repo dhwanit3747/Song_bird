@@ -204,4 +204,9 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+app.mount(
+    "/asset",
+    StaticFiles(directory=PROJECT_DIR / "asset"),
+    name="asset",
+)
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

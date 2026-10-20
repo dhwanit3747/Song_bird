@@ -13,6 +13,8 @@ backend/
   app.py                         FastAPI API and static frontend routing
 frontend/
   index.html                     Hero page, upload UI, player, and graphs
+asset/
+  227086-compressed.mp4           Hero background video
 signals_systems/
   processing.py                  Reusable IIR filter, STFT gate, and graphs
   Birdsong_Extraction_Signals_Systems.py
@@ -46,6 +48,9 @@ Open <http://127.0.0.1:8000>. The frontend calls the same-origin
    `requirements.txt` for pip-based setups.
 4. Deploy. The FastAPI app serves the homepage and static files from
    `frontend/`; the processing and health routes are served by the same app.
+
+The hero background is served from `asset/227086-compressed.mp4`. Include that
+file when deploying.
 
 After deployment, verify that `/api/health` responds with `{"status":"ok"}`.
 If the page still fails, check Vercel **Project → Settings → General →
